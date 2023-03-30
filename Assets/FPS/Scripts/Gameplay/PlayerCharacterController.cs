@@ -1,4 +1,5 @@
-﻿using Unity.FPS.Game;
+﻿using Photon.Pun;
+using Unity.FPS.Game;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -80,8 +81,7 @@ namespace Unity.FPS.Gameplay
         [Tooltip("Sound played when taking damage froma fall")]
         public AudioClip FallDamageSfx;
 
-        [Header("Fall Damage")]
-        [Tooltip("Whether the player will recieve damage when hitting the ground at high speed")]
+        [Header("Fall Damage")] [Tooltip("Whether the player will recieve damage when hitting the ground at high speed")]
         public bool RecievesFallDamage;
 
         [Tooltip("Minimun fall speed for recieving fall damage")]
@@ -133,8 +133,11 @@ namespace Unity.FPS.Gameplay
         const float k_JumpGroundingPreventionTime = 0.2f;
         const float k_GroundCheckDistanceInAir = 0.07f;
 
+        private PhotonView _photonView;
+
         void Awake()
         {
+            _photonView = GetComponent<PhotonView>();
             ActorsManager actorsManager = FindObjectOfType<ActorsManager>();
             if (actorsManager != null)
                 actorsManager.SetPlayer(gameObject);
@@ -142,6 +145,8 @@ namespace Unity.FPS.Gameplay
 
         void Start()
         {
+            if (!_photonView.IsMine)
+                return;
             // fetch components on the same gameObject
             m_Controller = GetComponent<CharacterController>();
             DebugUtility.HandleErrorIfNullGetComponent<CharacterController, PlayerCharacterController>(m_Controller,
@@ -172,6 +177,9 @@ namespace Unity.FPS.Gameplay
 
         void Update()
         {
+            if (!_photonView.IsMine)
+                return;
+
             // check for Y kill
             if (!IsDead && transform.position.y < KillHeight)
             {
@@ -241,8 +249,8 @@ namespace Unity.FPS.Gameplay
             {
                 // if we're grounded, collect info about the ground normal with a downward capsule cast representing our character capsule
                 if (Physics.CapsuleCast(GetCapsuleBottomHemisphere(), GetCapsuleTopHemisphere(m_Controller.height),
-                    m_Controller.radius, Vector3.down, out RaycastHit hit, chosenGroundCheckDistance, GroundCheckLayers,
-                    QueryTriggerInteraction.Ignore))
+                        m_Controller.radius, Vector3.down, out RaycastHit hit, chosenGroundCheckDistance, GroundCheckLayers,
+                        QueryTriggerInteraction.Ignore))
                 {
                     // storing the upward direction for the surface found
                     m_GroundNormal = hit.normal;
@@ -376,8 +384,8 @@ namespace Unity.FPS.Gameplay
             // detect obstructions to adjust velocity accordingly
             m_LatestImpactSpeed = Vector3.zero;
             if (Physics.CapsuleCast(capsuleBottomBeforeMove, capsuleTopBeforeMove, m_Controller.radius,
-                CharacterVelocity.normalized, out RaycastHit hit, CharacterVelocity.magnitude * Time.deltaTime, -1,
-                QueryTriggerInteraction.Ignore))
+                    CharacterVelocity.normalized, out RaycastHit hit, CharacterVelocity.magnitude * Time.deltaTime, -1,
+                    QueryTriggerInteraction.Ignore))
             {
                 // We remember the last impact speed because the fall damage logic might need it
                 m_LatestImpactSpeed = CharacterVelocity;
