@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using Photon.Pun;
 using Unity.FPS.Game;
 using UnityEngine;
 using UnityEngine.Events;
@@ -34,8 +36,7 @@ namespace Unity.FPS.Gameplay
         [Tooltip("Position for innactive weapons")]
         public Transform DownWeaponPosition;
 
-        [Header("Weapon Bob")]
-        [Tooltip("Frequency at which the weapon will move around in the screen when the player is in movement")]
+        [Header("Weapon Bob")] [Tooltip("Frequency at which the weapon will move around in the screen when the player is in movement")]
         public float BobFrequency = 10f;
 
         [Tooltip("How fast the weapon bob is applied, the bigger value the fastest")]
@@ -47,8 +48,7 @@ namespace Unity.FPS.Gameplay
         [Tooltip("Distance the weapon bobs when aiming")]
         public float AimingBobAmount = 0.02f;
 
-        [Header("Weapon Recoil")]
-        [Tooltip("This will affect how fast the recoil moves the weapon, the bigger the value, the fastest")]
+        [Header("Weapon Recoil")] [Tooltip("This will affect how fast the recoil moves the weapon, the bigger the value, the fastest")]
         public float RecoilSharpness = 50f;
 
         [Tooltip("Maximum distance the recoil can affect the weapon")]
@@ -93,8 +93,13 @@ namespace Unity.FPS.Gameplay
         WeaponSwitchState m_WeaponSwitchState;
         int m_WeaponSwitchNewWeaponIndex;
 
+        private PhotonView _photonView;
+
         void Start()
         {
+            _photonView = GetComponent<PhotonView>();
+            if (!_photonView.IsMine)
+                return;
             ActiveWeaponIndex = -1;
             m_WeaponSwitchState = WeaponSwitchState.Down;
 
@@ -116,11 +121,13 @@ namespace Unity.FPS.Gameplay
                 AddWeapon(weapon);
             }
 
-            SwitchWeapon(true);
+            // SwitchWeapon(true);
         }
 
         void Update()
         {
+            if (!_photonView.IsMine)
+                return;
             // shoot handling
             WeaponController activeWeapon = GetActiveWeapon();
 
@@ -135,6 +142,7 @@ namespace Unity.FPS.Gameplay
                     activeWeapon.StartReloadAnimation();
                     return;
                 }
+
                 // handle aiming down sights
                 IsAiming = m_InputHandler.GetAimInputHeld();
 
@@ -179,7 +187,7 @@ namespace Unity.FPS.Gameplay
             if (activeWeapon)
             {
                 if (Physics.Raycast(WeaponCamera.transform.position, WeaponCamera.transform.forward, out RaycastHit hit,
-                    1000, -1, QueryTriggerInteraction.Ignore))
+                        1000, -1, QueryTriggerInteraction.Ignore))
                 {
                     if (hit.collider.GetComponentInParent<Health>() != null)
                     {
@@ -189,10 +197,11 @@ namespace Unity.FPS.Gameplay
             }
         }
 
-
         // Update various animated features in LateUpdate because it needs to override the animated arm position
         void LateUpdate()
         {
+            if (!_photonView.IsMine)
+                return;
             UpdateWeaponAiming();
             UpdateWeaponBob();
             UpdateWeaponRecoil();
@@ -440,31 +449,32 @@ namespace Unity.FPS.Gameplay
                 if (m_WeaponSlots[i] == null)
                 {
                     // spawn the weapon prefab as child of the weapon socket
-                    WeaponController weaponInstance = Instantiate(weaponPrefab, WeaponParentSocket);
-                    weaponInstance.transform.localPosition = Vector3.zero;
-                    weaponInstance.transform.localRotation = Quaternion.identity;
+                    // WeaponController weaponInstance = Instantiate(weaponPrefab, WeaponParentSocket);
+                    // weaponInstance.transform.localPosition = Vector3.zero;
+                    // weaponInstance.transform.localRotation = Quaternion.identity;
+                    //
+                    // // Set owner to this gameObject so the weapon can alter projectile/damage logic accordingly
+                    // weaponInstance.Owner = gameObject;
+                    // weaponInstance.SourcePrefab = weaponPrefab.gameObject;
+                    // weaponInstance.ShowWeapon(false);
+                    //
+                    // // Assign the first person layer to the weapon
+                    // int layerIndex =
+                    //     Mathf.RoundToInt(Mathf.Log(FpsWeaponLayer.value,
+                    //         2)); // This function converts a layermask to a layer index
+                    // foreach (Transform t in weaponInstance.gameObject.GetComponentsInChildren<Transform>(true))
+                    // {
+                    //     t.gameObject.layer = layerIndex;
+                    // }
+                    //
+                    // m_WeaponSlots[i] = weaponInstance;
+                    //
+                    // if (OnAddedWeapon != null)
+                    // {
+                    //     OnAddedWeapon.Invoke(weaponInstance, i);
+                    // }
 
-                    // Set owner to this gameObject so the weapon can alter projectile/damage logic accordingly
-                    weaponInstance.Owner = gameObject;
-                    weaponInstance.SourcePrefab = weaponPrefab.gameObject;
-                    weaponInstance.ShowWeapon(false);
-
-                    // Assign the first person layer to the weapon
-                    int layerIndex =
-                        Mathf.RoundToInt(Mathf.Log(FpsWeaponLayer.value,
-                            2)); // This function converts a layermask to a layer index
-                    foreach (Transform t in weaponInstance.gameObject.GetComponentsInChildren<Transform>(true))
-                    {
-                        t.gameObject.layer = layerIndex;
-                    }
-
-                    m_WeaponSlots[i] = weaponInstance;
-
-                    if (OnAddedWeapon != null)
-                    {
-                        OnAddedWeapon.Invoke(weaponInstance, i);
-                    }
-
+                    _photonView.RPC("CreateWeapon", RpcTarget.AllBufferedViaServer, weaponPrefab.name, i); // CreateWeapon(m_WeaponSlots[i]);
                     return true;
                 }
             }
@@ -476,6 +486,58 @@ namespace Unity.FPS.Gameplay
             }
 
             return false;
+        }
+
+        [PunRPC]
+        public void CreateWeapon(string prefabName, int index)
+        {
+            // var data = obj as WeaponData;
+            var go = PhotonNetwork
+                .Instantiate(prefabName, WeaponParentSocket.transform.position, WeaponParentSocket.transform.rotation /*, WeaponParentSocket*/);
+
+            var weaponInstance = go.GetComponent<WeaponController>();
+            weaponInstance.transform.SetParent(WeaponParentSocket);
+            weaponInstance.transform.localPosition = Vector3.zero;
+            weaponInstance.transform.localRotation = Quaternion.identity;
+
+            // Set owner to this gameObject so the weapon can alter projectile/damage logic accordingly
+            weaponInstance.Owner = gameObject;
+            //  weaponInstance.SourcePrefab = true;
+            weaponInstance.ShowWeapon(false);
+
+            // Assign the first person layer to the weapon
+            int layerIndex =
+                Mathf.RoundToInt(Mathf.Log(FpsWeaponLayer.value,
+                    2)); // This function converts a layermask to a layer index
+            foreach (Transform t in weaponInstance.gameObject.GetComponentsInChildren<Transform>(true))
+            {
+                t.gameObject.layer = layerIndex;
+            }
+
+            m_WeaponSlots[index] = weaponInstance;
+
+            if (OnAddedWeapon != null)
+            {
+                OnAddedWeapon.Invoke(weaponInstance, index);
+            }
+
+            SwitchWeapon(true);
+            //_photonView.RPC("SetParent", RpcTarget.Others, weaponInstance, WeaponParentSocket);
+        }
+
+        [PunRPC]
+        public void SetParent(Transform child, Transform parent)
+        {
+            child.SetParent(parent);
+            child.transform.localPosition = Vector3.zero;
+            child.transform.localRotation = Quaternion.identity;
+            _photonView.RPC("SwitchWeapon", RpcTarget.All);
+        }
+
+        [PunRPC]
+        public void SwitchWeapon()
+        {
+            SwitchWeapon(true);
         }
 
         public bool RemoveWeapon(WeaponController weaponInstance)

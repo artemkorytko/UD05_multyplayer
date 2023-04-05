@@ -173,6 +173,9 @@ namespace Unity.FPS.Gameplay
             // force the crouch state to false when starting
             SetCrouchingState(false, true);
             UpdateCharacterHeight(true);
+
+            var cam = GetComponentInChildren<Camera>();
+            cam.depth = 100;
         }
 
         void Update()

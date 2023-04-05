@@ -23,4 +23,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/NetworkGame.unity
     guid: 59fd33e414efc4f62af468afbacc62ce
+  - enabled: 1
+    path: Assets/CatsScene.unity
+    guid: b26127f1cae8847c1ac012318f0ed637
   m_configObjects: {}

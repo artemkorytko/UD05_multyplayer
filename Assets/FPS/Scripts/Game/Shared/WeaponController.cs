@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Photon.Pun;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -40,8 +41,7 @@ namespace Unity.FPS.Game
         [Tooltip("Data for the crosshair when targeting an enemy")]
         public CrosshairData CrosshairDataTargetInSight;
 
-        [Header("Internal References")]
-        [Tooltip("The root object for the weapon, this is what will be deactivated when the weapon isn't active")]
+        [Header("Internal References")] [Tooltip("The root object for the weapon, this is what will be deactivated when the weapon isn't active")]
         public GameObject WeaponRoot;
 
         [Tooltip("Tip of the weapon, where the projectiles are shot")]
@@ -70,21 +70,26 @@ namespace Unity.FPS.Game
         [Tooltip("Translation to apply to weapon arm when aiming with this weapon")]
         public Vector3 AimOffset;
 
-        [Header("Ammo Parameters")]
-        [Tooltip("Should the player manually reload")]
+        [Header("Ammo Parameters")] [Tooltip("Should the player manually reload")]
         public bool AutomaticReload = true;
+
         [Tooltip("Has physical clip on the weapon and ammo shells are ejected when firing")]
         public bool HasPhysicalBullets = false;
+
         [Tooltip("Number of bullets in a clip")]
         public int ClipSize = 30;
-        [Tooltip("Bullet Shell Casing")]
-        public GameObject ShellCasing;
+
+        [Tooltip("Bullet Shell Casing")] public GameObject ShellCasing;
+
         [Tooltip("Weapon Ejection Port for physical ammo")]
         public Transform EjectionPort;
-        [Tooltip("Force applied on the shell")]
-        [Range(0.0f, 5.0f)] public float ShellCasingEjectionForce = 2.0f;
-        [Tooltip("Maximum number of shell that can be spawned before reuse")]
-        [Range(1, 30)] public int ShellPoolSize = 1;
+
+        [Tooltip("Force applied on the shell")] [Range(0.0f, 5.0f)]
+        public float ShellCasingEjectionForce = 2.0f;
+
+        [Tooltip("Maximum number of shell that can be spawned before reuse")] [Range(1, 30)]
+        public int ShellPoolSize = 1;
+
         [Tooltip("Amount of ammo reloaded per second")]
         public float AmmoReloadRate = 1f;
 
@@ -94,8 +99,7 @@ namespace Unity.FPS.Game
         [Tooltip("Maximum amount of ammo in the gun")]
         public int MaxAmmo = 8;
 
-        [Header("Charging parameters (charging weapons only)")]
-        [Tooltip("Trigger a shot when maximum charge is reached")]
+        [Header("Charging parameters (charging weapons only)")] [Tooltip("Trigger a shot when maximum charge is reached")]
         public bool AutomaticReleaseOnCharged;
 
         [Tooltip("Duration to reach maximum charge")]
@@ -107,8 +111,7 @@ namespace Unity.FPS.Game
         [Tooltip("Additional ammo used when charge reaches its maximum")]
         public float AmmoUsageRateWhileCharging = 1f;
 
-        [Header("Audio & Visual")] 
-        [Tooltip("Optional weapon animator for OnShoot animations")]
+        [Header("Audio & Visual")] [Tooltip("Optional weapon animator for OnShoot animations")]
         public Animator WeaponAnimator;
 
         [Tooltip("Prefab of the muzzle flash")]
@@ -163,13 +166,16 @@ namespace Unity.FPS.Game
 
         private Queue<Rigidbody> m_PhysicalAmmoPool;
 
+        private PhotonView _photonView;
+
         void Awake()
         {
+            m_ShootAudioSource = GetComponent<AudioSource>();
+            _photonView = GetComponent<PhotonView>();
             m_CurrentAmmo = MaxAmmo;
             m_CarriedPhysicalBullets = HasPhysicalBullets ? ClipSize : 0;
             m_LastMuzzlePosition = WeaponMuzzle.position;
 
-            m_ShootAudioSource = GetComponent<AudioSource>();
             DebugUtility.HandleErrorIfNullGetComponent<AudioSource, WeaponController>(m_ShootAudioSource, this,
                 gameObject);
 
@@ -196,6 +202,15 @@ namespace Unity.FPS.Game
             }
         }
 
+        // private void Start()
+        // {
+        //     var data = _photonView.InstantiationData;
+        //     var parent = data[0] as Transform;
+        //     transform.SetParent(parent);
+        //     transform.localPosition = Vector3.zero;
+        //     transform.localRotation = Quaternion.identity;
+        // }
+
         public void AddCarriablePhysicalBullets(int count) => m_CarriedPhysicalBullets = Mathf.Max(m_CarriedPhysicalBullets + count, MaxAmmo);
 
         void ShootShell()
@@ -213,7 +228,6 @@ namespace Unity.FPS.Game
         }
 
         void PlaySFX(AudioClip sfx) => AudioUtility.CreateSFX(sfx, transform.position, AudioUtility.AudioGroups.WeaponShoot, 0.0f);
-
 
         void Reload()
         {
@@ -236,6 +250,8 @@ namespace Unity.FPS.Game
 
         void Update()
         {
+            if (!_photonView.IsMine)
+                return;
             UpdateAmmo();
             UpdateCharge();
             UpdateContinuousShootSound();

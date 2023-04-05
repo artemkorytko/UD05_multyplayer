@@ -7,10 +7,8 @@ using UnityEngine.SceneManagement;
 public class PhotonManager : MonoBehaviourPunCallbacks
 {
     public static PhotonManager Instance { get; private set; }
-    
+
     [SerializeField] private GameObject playerPrefab;
-    
-    
 
     private void Awake()
     {
@@ -40,9 +38,9 @@ public class PhotonManager : MonoBehaviourPunCallbacks
 
     private void OnSceneLoad(Scene scene, LoadSceneMode loadSceneMode)
     {
-        if (scene.name == "NetworkGame" )
+        if (scene.name == "CatsScene")
         {
-            //PhotonNetwork.Instantiate(playerPrefab.name, Vector3.zero, Quaternion.identity);
+            PhotonNetwork.Instantiate(playerPrefab.name, Vector3.zero, Quaternion.identity);
         }
     }
 
@@ -61,21 +59,27 @@ public class PhotonManager : MonoBehaviourPunCallbacks
     public override void OnJoinedRoom()
     {
         Debug.Log(PhotonNetwork.CurrentRoom.PlayerCount);
-        // if (PhotonNetwork.CurrentRoom.PlayerCount > 1 && PhotonNetwork.IsMasterClient)
-        // {
-        //     PhotonNetwork.LoadLevel("NetworkGame");
-        // }
+        if (PhotonNetwork.IsMasterClient)
+        {
+            PhotonNetwork.LoadLevel("CatsScene");
+            Debug.Log("CatsScene");
+        }
 
         Debug.Log("OnJoinedRoom");
     }
 
     public override void OnPlayerEnteredRoom(Player newPlayer)
     {
-        if (PhotonNetwork.CurrentRoom.PlayerCount > 1 && PhotonNetwork.IsMasterClient)
-        {
-            PhotonNetwork.LoadLevel("NetworkGame");
-        }
+        // if (PhotonNetwork.CurrentRoom.PlayerCount > 1 && PhotonNetwork.IsMasterClient)
+        // {
+        //     PhotonNetwork.LoadLevel("NetworkGame");
+        // }
 
         Debug.Log("OnPlayerEnteredRoom");
+    }
+
+    public override void OnMasterClientSwitched(Player newMasterClient)
+    {
+        Debug.Log(newMasterClient.UserId);
     }
 }

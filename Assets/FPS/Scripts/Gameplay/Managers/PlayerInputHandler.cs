@@ -1,4 +1,5 @@
-﻿using Unity.FPS.Game;
+﻿using Photon.Pun;
+using Unity.FPS.Game;
 using UnityEngine;
 
 namespace Unity.FPS.Gameplay
@@ -24,8 +25,13 @@ namespace Unity.FPS.Gameplay
         PlayerCharacterController m_PlayerCharacterController;
         bool m_FireInputWasHeld;
 
+        private PhotonView _photonView;
+
         void Start()
         {
+            _photonView = GetComponent<PhotonView>();
+            if(!_photonView.IsMine)
+                return;
             m_PlayerCharacterController = GetComponent<PlayerCharacterController>();
             DebugUtility.HandleErrorIfNullGetComponent<PlayerCharacterController, PlayerInputHandler>(
                 m_PlayerCharacterController, this, gameObject);
@@ -38,6 +44,8 @@ namespace Unity.FPS.Gameplay
 
         void LateUpdate()
         {
+            if(!_photonView.IsMine)
+                return;
             m_FireInputWasHeld = GetFireInputHeld();
         }
 
